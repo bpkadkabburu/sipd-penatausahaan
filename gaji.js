@@ -25,6 +25,27 @@ let listBulan = [
   'Desember',
 ]
 
+
+function groupBy(element, x){
+    return element.reduce((accumulator, currentValue) =>{
+        (accumulator[currentValue[x]] = accumulator[currentValue[x]] || []).push(currentValue);
+        return accumulator;
+    }, {})
+}
+
+function groupByLength(array, key) {
+  return array.reduce((acc, obj) => {
+    const keyValue = obj[key];
+    acc[keyValue] = (acc[keyValue] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function cariSKPD(id_skpd) {
+  console.log('cari dinas', id_skpd)
+    return listDinas.find(item => item.id_skpd == id_skpd);
+}
+
 // Buat mengubah format yang telah diinput sama SKPD, karena kadang formatnya lucu
 // possible format I A, I-A, I/A, I / A, dan bentuk huruf kecilnya
 const standardizeGolongan = (originalGolongan) => {
@@ -356,8 +377,37 @@ function premature(limit){
   }
 }
 
+function hitungStruktural(limit){
+  for (const [index, value] of listBulan.entries()) {
+    if((index+1) > limit){
+      break;
+    }
+
+    const outputFile = `GAJI\\Gaji Pegawai ${index+1}. ${value}.json`;
+    const jsonData = fs.readFileSync(outputFile, 'utf-8')
+    const parsedData = JSON.parse(jsonData)
+    let listDinas = groupBy(parsedData, 'id_skpd')
+    for (const keyDinas in listDinas) {
+      if (Object.hasOwnProperty.call(listDinas, keyDinas)) {
+        const dinas = listDinas[keyDinas];
+        const dataDinas = cariSKPD(keyDinas)
+        console.log(dataDinas.nama_skpd, '|', keyDinas);
+        let listTunjangan = groupBy(dinas, 'belanja_tunjangan_jabatan');
+        for (const keyJabatan in listTunjangan) {
+          if (Object.hasOwnProperty.call(listTunjangan, keyJabatan)) {
+            const jabatan = listTunjangan[keyJabatan];
+            const lengthJabatan = groupByLength(jabatan, 'belanja_tunjangan_jabatan')
+            console.log(keyJabatan, '|', lengthJabatan)
+          }
+        }
+      }
+    } 
+  }
+}
+
 // mainkan ini saja mau ambil, convert, atau cek yang prematur
 
 // getData(2);
 // convertData(2);
-premature(2)
+// premature(2)
+hitungStruktural(2)

@@ -137,6 +137,11 @@ async function getData(limit){
         const headers = response.headers
         let data = await response.json();
 
+        if(!data){
+          console.log(`-- Data Pegawai ${nama_dinas} bulan ${value} TIDAK ADA`)
+          continue;
+        }
+
         allData = allData.concat(data)
 
         totalData += data.length
@@ -306,42 +311,8 @@ function convertData(limit){
       });
 
     });
-  //   for (const key in parsedData) {
-  //     if (Object.hasOwnProperty.call(parsedData, key)) {
-  //       const element = parsedData[key];
-  //       excelData.push(
-  //         [
-  //           {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           "", 
-  //           "", 
-  //           ""
-  //         ],
-  //         ["", "", "", ""],
-  //         [
-  //           {t:"s", v:"Kode", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           {t:"s", v:"Urusan / Bidang Urusan / Program / Kegiatan / Sub Kegiatan", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           {t:"s", v:"Nama Sumber Dana", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           {t:"s", v:"Pagu Indikatif (Rp)", s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //         ],
-  //         [
-  //           {t:"s", v:duplicate[0].kode_sub_skpd + " " + key, s:{font:{bold:true, name: "Calibri", sz: 9}}}, 
-  //           "", 
-  //           "", 
-  //           {t:"n", z:"#,##0.00", v:total(duplicate, 'pagu_indikatif'), s:{font:{bold:true, name: "Calibri", sz: 9}}}
-  //         ]
-  //       )
-  //     }
-  //   }
-
-  //   const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-  //   worksheet["!cols"] = [ { wpx: 185 }, { wpx: 470 }, { wpx: 580 }, { wpx: 125 }, { wpx: 205 } ];
-
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, `${index+1}. ${value}`);
 
   }
-
-  // XLSX.writeFile(workbook, "DAFTAR GAJI PEGAWAI.xlsx", { compression: true });
 }
 
 function premature(limit){
@@ -405,9 +376,227 @@ function hitungStruktural(limit){
   }
 }
 
+function extractNumber(filename) {
+  return parseInt(filename.split('.')[0]);
+}
+
+function convertExcel(limit){
+  for (const [index, value] of listBulan.entries()) {
+    if((index+1) > limit){
+      break;
+    }
+
+    console.log(`Converting data bulan ${value}`)
+
+    const folderPath = `GAJI\\${index+1}. ${value}`;
+    let workbook = XLSX.utils.book_new()
+    let excelData = [];
+
+    try {
+      let files = fs.readdirSync(folderPath);
+
+      files.sort((a, b) => extractNumber(a) - extractNumber(b));
+
+      // console.log(files);
+      for (let file of files) {
+        if (path.extname(file) === '.json') {
+          const filePath = path.join(folderPath, file);
+          let data = fs.readFileSync(filePath, 'utf8');
+          let jsonData = JSON.parse(data);
+          let excelData = [
+            [
+              {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+              {t:"s", v:"NIP", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+              {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+              {t:"s", v:"Golongan", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+            ]
+          ];
+          for (const key in jsonData) {
+            if (Object.hasOwnProperty.call(jsonData, key)) {
+              const element = jsonData[key];
+              let golonganBaru = standardizeGolongan(element.golongan);
+              excelData.push(
+                [
+                  {t:"s", v: (parseInt(key) + 1).toString(), s:{font:{name: "Calibri", sz: 9}}},
+                  {t:"s", v: element.nip_pegawai, s:{font:{name: "Calibri", sz: 9}}},
+                  {t:"s", v: element.nama_pegawai, s:{font:{name: "Calibri", sz: 9}}},
+                  {t:"s", v: golonganBaru, s:{font:{name: "Calibri", sz: 9}}},
+                ]
+              );
+            }
+          }
+
+          const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+          worksheet["!cols"] = [{ wpx: 25 }, { wpx: 100 }, { wpx: 215 }, { wpx: 43 }];
+          XLSX.utils.book_append_sheet(workbook, worksheet, `${file.replace(".json", "").substring(0,30)}`);
+        }
+      }
+
+      XLSX.writeFile(workbook, `EXCEL/DAFTAR GAJI PEGAWAI ${value.toUpperCase()} - ${files.length}.xlsx`, { compression: true });
+    } catch (error) {
+      console.error('Error reading directory or files:', error);
+      throw error;
+    }
+  }
+}
+
+function cekAnomali(limit){
+  let excelData = [
+    [
+      {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+      {t:"s", v:"PERANGKAT DAERAH", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+    ]
+  ];
+  let workbook = XLSX.utils.book_new()
+  for (const [index, value] of listBulan.entries()) {
+    if((index+1) > limit){
+      break;
+    }
+
+    console.log(`Converting data bulan ${value}`)
+
+    excelData[0][index + 2] = {t:"s", v:value.toUpperCase(), s:{font:{bold:true, name: "Calibri", sz: 9}}}    
+    // console.log(excelData)
+    const folderPath = `GAJI\\${index+1}. ${value}`;
+    
+    for (const [indexDinas, dinas] of listDinas.entries()) {
+      try {
+        if(fs.existsSync(`${folderPath}\\${indexDinas+1}. ${dinas.nama_skpd}.json`)){
+          let files = fs.readFileSync(`${folderPath}\\${indexDinas+1}. ${dinas.nama_skpd}.json`, 'utf-8')
+          let jsonData = JSON.parse(files)
+          if(excelData[indexDinas + 1]){
+            excelData[indexDinas + 1][index + 2] = {t:"n", v:jsonData.length, s:{font:{name: "Calibri", sz: 9}}};
+          } else {
+            excelData.push(
+              [
+                {t:"s", v:indexDinas+1, s:{font:{name: "Calibri", sz: 9}}},
+                {t:"s", v:dinas.nama_skpd, s:{font:{name: "Calibri", sz: 9}}},
+                {t:"n", v:jsonData.length, s:{font:{name: "Calibri", sz: 9}}},
+              ]
+            )
+          }
+          
+        } else {
+          if(excelData[indexDinas + 1]){
+            excelData[indexDinas + 1][index + 2] = {t:"n", v:0, s:{font:{name: "Calibri", sz: 9}}}
+          } else {
+            excelData.push(
+              [
+                {t:"s", v:indexDinas+1, s:{font:{name: "Calibri", sz: 9}}},
+                {t:"s", v:dinas.nama_skpd, s:{font:{name: "Calibri", sz: 9}}},
+                {t:"n", v:0, s:{font:{name: "Calibri", sz: 9}}},
+              ]
+            )
+          }
+        }
+        
+      } catch (error) {
+        console.log(error)
+      }
+    }
+  }
+  const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+  worksheet["!cols"] = [{ wpx: 25 }, { wpx: 100 }];
+  XLSX.utils.book_append_sheet(workbook, worksheet, `JUMLAH PEGAWAI`);
+  XLSX.writeFile(workbook, `EXCEL/JUMLAH PEGAWAI.xlsx`, { compression: true });
+}
+
+function cekAnomaliPegawai(limit){
+  let workbook = XLSX.utils.book_new()
+  for (const [indexDinas, dinas] of listDinas.entries()) {
+    let pegawaiData = [];
+    let excelData = [
+      [
+        {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+        {t:"s", v:"NIP", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+        {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+        {t:"s", v:"Golongan", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+      ]
+    ];
+    for (const [index, value] of listBulan.entries()) {
+      if((index+1) > limit){
+        break;
+      }
+      excelData[0][index + 4] = {t:"s", v:value.toUpperCase(), s:{font:{bold:true, name: "Calibri", sz: 9}}}
+      const folderPath = `GAJI\\${index+1}. ${value}\\${indexDinas+1}. ${dinas.nama_skpd}.json`;
+      try {
+        if(fs.existsSync(folderPath)){
+          let files = fs.readFileSync(`${folderPath}`, 'utf-8')
+          let jsonData = JSON.parse(files)
+          for (const iterator of jsonData) {
+
+            if(index === 0) {
+              pegawaiData.push({
+                nip_pegawai: iterator.nip_pegawai,
+                nama_pegawai: iterator.nama_pegawai,
+                golongan: standardizeGolongan(iterator.golongan),
+                [value]: 1
+              })
+            } else {
+              // console.log(jsonData.find(x => x.nip_pegawai == '196402041984031002'))
+              if(pegawaiData.some(x => x.nip_pegawai === iterator.nip_pegawai)){
+                let existingPegawai = pegawaiData.find(x => x.nip_pegawai === iterator.nip_pegawai)
+                existingPegawai[value] = 1
+              } else {
+                pegawaiData.push({
+                  nip_pegawai: iterator.nip_pegawai,
+                  nama_pegawai: iterator.nama_pegawai,
+                  golongan: standardizeGolongan(iterator.golongan),
+                  [value]: 1
+                })
+
+                // console.log(`${value} - ${iterator.nip_pegawai}`)
+                
+                for (let i = 0; i < index; i++) {
+                  const element = listBulan[i];
+                  pegawaiData[element] = 0
+                  // console.log(`${value} - ${iterator.nip_pegawai} - ${element} - ${pegawaiData[element]}`)
+                }
+              }
+            }
+          }
+        } else {
+          for (const iterator of pegawaiData) {
+            iterator[value] = 0
+          }
+        }
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    // console.log(pegawaiData)
+
+    for (const [index, iterator] of pegawaiData.entries()) {
+      let row = [
+        { t: "s", v: index + 1, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: iterator.nip_pegawai, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: iterator.nama_pegawai.trim(), s: { font: { name: "Calibri", sz: 9 } } }, // Menghapus spasi di depan dan belakang nama_pegawai
+        { t: "s", v: iterator.golongan, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.Januari ?? 0, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.Februari ?? 0, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.Maret ?? 0, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.April ?? 0, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.Mei ?? 0, s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "n", v: iterator.Juni ?? 0, s: { font: { name: "Calibri", sz: 9 } } }
+      ];
+
+      excelData.push(row);
+    }
+
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    worksheet["!cols"] = [{ wpx: 25 }, { wpx: 100 }, { wpx: 215 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, `${indexDinas+1}. ${dinas.nama_skpd}`.substring(0, 30));
+  }
+
+  XLSX.writeFile(workbook, `EXCEL/KEHADIRAN PEGAWAI.xlsx`, { compression: true });
+}
+
 // mainkan ini saja mau ambil, convert, atau cek yang prematur
 
-// getData(2);
+// getData(6);
 // convertData(2);
 // premature(2)
-hitungStruktural(2)
+// hitungStruktural(2)
+// convertExcel(6);
+cekAnomaliPegawai(6);

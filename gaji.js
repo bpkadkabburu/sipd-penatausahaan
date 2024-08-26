@@ -1,10 +1,13 @@
-const listDinas = require('./listDinas.json')
+const listDinas = require('./lib/reference/listDinas.json')
 const XLSX = require('xlsx-js-style')
 const fs = require('fs')
 const path = require('path')
 const {
   TABEL
-} = require('./tabelGaji')
+} = require('./lib/reference/tabelGaji')
+const {
+  total
+} = require('./lib/utils')
 
 require('dotenv').config()
 
@@ -26,11 +29,11 @@ let listBulan = [
 ]
 
 
-function groupBy(element, x){
-    return element.reduce((accumulator, currentValue) =>{
-        (accumulator[currentValue[x]] = accumulator[currentValue[x]] || []).push(currentValue);
-        return accumulator;
-    }, {})
+function groupBy(element, x) {
+  return element.reduce((accumulator, currentValue) => {
+    (accumulator[currentValue[x]] = accumulator[currentValue[x]] || []).push(currentValue);
+    return accumulator;
+  }, {})
 }
 
 function groupByLength(array, key) {
@@ -43,7 +46,7 @@ function groupByLength(array, key) {
 
 function cariSKPD(id_skpd) {
   console.log('cari dinas', id_skpd)
-    return listDinas.find(item => item.id_skpd == id_skpd);
+  return listDinas.find(item => item.id_skpd == id_skpd);
 }
 
 // Buat mengubah format yang telah diinput sama SKPD, karena kadang formatnya lucu
@@ -84,11 +87,11 @@ const cariGaji = (gaji, mode) => {
     for (const key in TABEL[category]) {
       const data = TABEL[category][key];
       if (data.LAMA === gaji) {
-        if(mode === 'golongan'){
+        if (mode === 'golongan') {
           return category
-        } 
+        }
 
-        if(mode === 'mkg'){
+        if (mode === 'mkg') {
           return key
         }
       }
@@ -98,10 +101,10 @@ const cariGaji = (gaji, mode) => {
   return 'not found'
 }
 
-async function getData(limit){
+async function getData(limit) {
   for (const [index, value] of listBulan.entries()) {
-    let element = `./GAJI/${index+1}. ${value}`
-    if(!fs.existsSync(element)){
+    let element = `./GAJI/${index + 1}. ${value}`
+    if (!fs.existsSync(element)) {
       fs.mkdirSync(element)
       console.log(`Membuat Folder ${element}`)
     } else {
@@ -110,7 +113,7 @@ async function getData(limit){
   }
 
   for (const [indexDinas, dinas] of listDinas.entries()) {
-    
+
     for (const [index, value] of listBulan.entries()) {
       try {
         let nama_dinas = dinas.nama_skpd
@@ -120,7 +123,7 @@ async function getData(limit){
         let month = index + 1
 
         // SPECIAL BREAK HERE
-        if(month > limit){
+        if (month > limit) {
           break;
         }
 
@@ -137,7 +140,7 @@ async function getData(limit){
         const headers = response.headers
         let data = await response.json();
 
-        if(!data){
+        if (!data) {
           console.log(`-- Data Pegawai ${nama_dinas} bulan ${value} TIDAK ADA`)
           continue;
         }
@@ -161,7 +164,7 @@ async function getData(limit){
 
           let data = await response.json();
 
-          allData =  allData.concat(data)
+          allData = allData.concat(data)
 
           totalData += data.length
           console.log(`-- Progress ${page}/${pageCount} | ${totalData}/ ${totalCount} | ${allData.length} --`)
@@ -169,16 +172,16 @@ async function getData(limit){
 
         console.log(`Data Berhasil Diambil | ${allData.length}`)
 
-        let pathJson = `GAJI\\${index+1}. ${value}\\${indexDinas+1}. ${nama_dinas}.json`
-        if(fs.existsSync(pathJson)){
+        let pathJson = `GAJI\\${index + 1}. ${value}\\${indexDinas + 1}. ${nama_dinas}.json`
+        if (fs.existsSync(pathJson)) {
           fs.unlinkSync(pathJson)
         }
 
-        fs.writeFile(pathJson, JSON.stringify(allData), function(err) { 
-            if (err) {
-                console.log('File JSON tidak bisa disimpan', err)
-            }
-            console.log('Data Berhasil Disimpan')
+        fs.writeFile(pathJson, JSON.stringify(allData), function (err) {
+          if (err) {
+            console.log('File JSON tidak bisa disimpan', err)
+          }
+          console.log('Data Berhasil Disimpan')
         });
       } catch (error) {
         console.log('Error fetching data:', error);
@@ -188,14 +191,14 @@ async function getData(limit){
 }
 
 
-function convertData(limit){
+function convertData(limit) {
   let workbook = XLSX.utils.book_new()
   for (const [index, value] of listBulan.entries()) {
-    if((index+1) > limit){
+    if ((index + 1) > limit) {
       break;
     }
-    const folderPath = `GAJI\\${index+1}. ${value}`;
-    const outputFile = `GAJI\\Gaji Pegawai ${index+1}. ${value}.json`;
+    const folderPath = `GAJI\\${index + 1}. ${value}`;
+    const outputFile = `GAJI\\Gaji Pegawai ${index + 1}. ${value}.json`;
     const concatenatedData = [];
     let filesProcessed = 0;
 
@@ -217,46 +220,46 @@ function convertData(limit){
               let jsonData = JSON.parse(data);
 
               jsonData = jsonData.map(obj => {
-                let golonganBaru, golonganSesuaiGapok, mkgSesuaiGapok, 
-                gajiSeharusnya, gajiSesuaiGolonganMkgLama,  notfound = 0, mkgMaksimal,
-                gajiBaru;
+                let golonganBaru, golonganSesuaiGapok, mkgSesuaiGapok,
+                  gajiSeharusnya, gajiSesuaiGolonganMkgLama, notfound = 0, mkgMaksimal,
+                  gajiBaru;
                 try {
                   golonganBaru = standardizeGolongan(obj.golongan)
-                  
+
                   golonganSesuaiGapok = cariGaji(obj.belanja_gaji_pokok, 'golongan')
-                  
-                  if(golonganSesuaiGapok === 'not found'){
+
+                  if (golonganSesuaiGapok === 'not found') {
                     notfound++
                     golonganSesuaiGapok = golonganBaru
                   }
 
                   mkgSesuaiGapok = cariGaji(obj.belanja_gaji_pokok, 'mkg')
-                  if(mkgSesuaiGapok === 'not found'){
+                  if (mkgSesuaiGapok === 'not found') {
                     notfound++
                     mkgSesuaiGapok = obj.mkg
                   }
 
                   gajiSeharusnya = TABEL[golonganSesuaiGapok][mkgSesuaiGapok]['LAMA']
                   gajiBaru = TABEL[golonganSesuaiGapok][mkgSesuaiGapok]['BARU']
-                  
+
                   if (TABEL[golonganBaru][obj.mkg]) {
                     gajiSesuaiGolonganMkgLama = TABEL[golonganBaru][obj.mkg]['LAMA']
                   } else {
-                    if(obj.mkg >  Object.keys(TABEL[golonganBaru]).length){
+                    if (obj.mkg > Object.keys(TABEL[golonganBaru]).length) {
                       mkgMaksimal = Object.keys(TABEL[golonganBaru]).length - 1
                     }
                     gajiSesuaiGolonganMkgLama = TABEL[golonganBaru][mkgMaksimal]['LAMA']
                   }
 
-                  if(obj.belanja_gaji_pokok === gajiSesuaiGolonganMkgLama){
+                  if (obj.belanja_gaji_pokok === gajiSesuaiGolonganMkgLama) {
                     mkgSesuaiGapok = obj.mkg
                   }
 
                   return {
                     ...obj,
-                    raw:{
+                    raw: {
                       tunjangan_beras_per_tanggungan: 72420,
-                      jumlah_keluarga: (1 + parseInt(obj.jumlah_tanggungan) ),
+                      jumlah_keluarga: (1 + parseInt(obj.jumlah_tanggungan)),
                       golongan_baru: golonganBaru,
                       golongan_sesuai_gaji_pokok_dibayar: golonganSesuaiGapok,
                       is_golongan_sesuai_gapok: golonganSesuaiGapok === golonganBaru,
@@ -286,8 +289,8 @@ function convertData(limit){
                   console.log(`${obj.belanja_gaji_pokok} - ${golonganSesuaiGapok} - ${mkgSesuaiGapok} - ${mkgMaksimal} - ${obj.nip_pegawai} - ${obj.nama_pegawai}`)
                   console.log(`${obj.belanja_gaji_pokok} - ${golonganBaru} - ${obj.mkg} - ${mkgMaksimal} - ${obj.nip_pegawai} - ${obj.nama_pegawai}`)
                 }
-                
-                
+
+
               })
 
               concatenatedData.push(...jsonData);
@@ -315,16 +318,16 @@ function convertData(limit){
   }
 }
 
-function premature(limit){
+function premature(limit) {
   for (const [index, value] of listBulan.entries()) {
-    if((index+1) > limit){
+    if ((index + 1) > limit) {
       break;
     }
 
-    const outputFile = `GAJI\\Gaji Pegawai ${index+1}. ${value}.json`;
+    const outputFile = `GAJI\\Gaji Pegawai ${index + 1}. ${value}.json`;
     const jsonData = fs.readFileSync(outputFile, 'utf-8')
     const parsedData = JSON.parse(jsonData)
-    const outputGajiTidakSesuai = `GAJI\\Gaji Pegawai ${index+1}. ${value} - TIDAK SESUAI.json`;
+    const outputGajiTidakSesuai = `GAJI\\Gaji Pegawai ${index + 1}. ${value} - TIDAK SESUAI.json`;
     let dataTidakSesuai = []
     let countFalse = 0;
 
@@ -348,13 +351,13 @@ function premature(limit){
   }
 }
 
-function hitungStruktural(limit){
+function hitungStruktural(limit) {
   for (const [index, value] of listBulan.entries()) {
-    if((index+1) > limit){
+    if ((index + 1) > limit) {
       break;
     }
 
-    const outputFile = `GAJI\\Gaji Pegawai ${index+1}. ${value}.json`;
+    const outputFile = `GAJI\\Gaji Pegawai ${index + 1}. ${value}.json`;
     const jsonData = fs.readFileSync(outputFile, 'utf-8')
     const parsedData = JSON.parse(jsonData)
     let listDinas = groupBy(parsedData, 'id_skpd')
@@ -372,7 +375,7 @@ function hitungStruktural(limit){
           }
         }
       }
-    } 
+    }
   }
 }
 
@@ -380,15 +383,15 @@ function extractNumber(filename) {
   return parseInt(filename.split('.')[0]);
 }
 
-function convertExcel(limit){
+function convertExcel(limit) {
   for (const [index, value] of listBulan.entries()) {
-    if((index+1) > limit){
+    if ((index + 1) > limit) {
       break;
     }
 
     console.log(`Converting data bulan ${value}`)
 
-    const folderPath = `GAJI\\${index+1}. ${value}`;
+    const folderPath = `GAJI\\${index + 1}. ${value}`;
     let workbook = XLSX.utils.book_new()
     let excelData = [];
 
@@ -405,10 +408,10 @@ function convertExcel(limit){
           let jsonData = JSON.parse(data);
           let excelData = [
             [
-              {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-              {t:"s", v:"NIP", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-              {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-              {t:"s", v:"Golongan", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+              { t: "s", v: "No.", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+              { t: "s", v: "NIP", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+              { t: "s", v: "Nama Pegawai", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+              { t: "s", v: "Golongan", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
             ]
           ];
           for (const key in jsonData) {
@@ -417,10 +420,10 @@ function convertExcel(limit){
               let golonganBaru = standardizeGolongan(element.golongan);
               excelData.push(
                 [
-                  {t:"s", v: (parseInt(key) + 1).toString(), s:{font:{name: "Calibri", sz: 9}}},
-                  {t:"s", v: element.nip_pegawai, s:{font:{name: "Calibri", sz: 9}}},
-                  {t:"s", v: element.nama_pegawai, s:{font:{name: "Calibri", sz: 9}}},
-                  {t:"s", v: golonganBaru, s:{font:{name: "Calibri", sz: 9}}},
+                  { t: "s", v: (parseInt(key) + 1).toString(), s: { font: { name: "Calibri", sz: 9 } } },
+                  { t: "s", v: element.nip_pegawai, s: { font: { name: "Calibri", sz: 9 } } },
+                  { t: "s", v: element.nama_pegawai, s: { font: { name: "Calibri", sz: 9 } } },
+                  { t: "s", v: golonganBaru, s: { font: { name: "Calibri", sz: 9 } } },
                 ]
               );
             }
@@ -428,7 +431,7 @@ function convertExcel(limit){
 
           const worksheet = XLSX.utils.aoa_to_sheet(excelData);
           worksheet["!cols"] = [{ wpx: 25 }, { wpx: 100 }, { wpx: 215 }, { wpx: 43 }];
-          XLSX.utils.book_append_sheet(workbook, worksheet, `${file.replace(".json", "").substring(0,30)}`);
+          XLSX.utils.book_append_sheet(workbook, worksheet, `${file.replace(".json", "").substring(0, 30)}`);
         }
       }
 
@@ -440,56 +443,56 @@ function convertExcel(limit){
   }
 }
 
-function cekAnomali(limit){
+function cekAnomali(limit) {
   let excelData = [
     [
-      {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-      {t:"s", v:"PERANGKAT DAERAH", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+      { t: "s", v: "No.", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+      { t: "s", v: "PERANGKAT DAERAH", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
     ]
   ];
   let workbook = XLSX.utils.book_new()
   for (const [index, value] of listBulan.entries()) {
-    if((index+1) > limit){
+    if ((index + 1) > limit) {
       break;
     }
 
     console.log(`Converting data bulan ${value}`)
 
-    excelData[0][index + 2] = {t:"s", v:value.toUpperCase(), s:{font:{bold:true, name: "Calibri", sz: 9}}}    
+    excelData[0][index + 2] = { t: "s", v: value.toUpperCase(), s: { font: { bold: true, name: "Calibri", sz: 9 } } }
     // console.log(excelData)
-    const folderPath = `GAJI\\${index+1}. ${value}`;
-    
+    const folderPath = `GAJI\\${index + 1}. ${value}`;
+
     for (const [indexDinas, dinas] of listDinas.entries()) {
       try {
-        if(fs.existsSync(`${folderPath}\\${indexDinas+1}. ${dinas.nama_skpd}.json`)){
-          let files = fs.readFileSync(`${folderPath}\\${indexDinas+1}. ${dinas.nama_skpd}.json`, 'utf-8')
+        if (fs.existsSync(`${folderPath}\\${indexDinas + 1}. ${dinas.nama_skpd}.json`)) {
+          let files = fs.readFileSync(`${folderPath}\\${indexDinas + 1}. ${dinas.nama_skpd}.json`, 'utf-8')
           let jsonData = JSON.parse(files)
-          if(excelData[indexDinas + 1]){
-            excelData[indexDinas + 1][index + 2] = {t:"n", v:jsonData.length, s:{font:{name: "Calibri", sz: 9}}};
+          if (excelData[indexDinas + 1]) {
+            excelData[indexDinas + 1][index + 2] = { t: "n", v: jsonData.length, s: { font: { name: "Calibri", sz: 9 } } };
           } else {
             excelData.push(
               [
-                {t:"s", v:indexDinas+1, s:{font:{name: "Calibri", sz: 9}}},
-                {t:"s", v:dinas.nama_skpd, s:{font:{name: "Calibri", sz: 9}}},
-                {t:"n", v:jsonData.length, s:{font:{name: "Calibri", sz: 9}}},
+                { t: "s", v: indexDinas + 1, s: { font: { name: "Calibri", sz: 9 } } },
+                { t: "s", v: dinas.nama_skpd, s: { font: { name: "Calibri", sz: 9 } } },
+                { t: "n", v: jsonData.length, s: { font: { name: "Calibri", sz: 9 } } },
               ]
             )
           }
-          
+
         } else {
-          if(excelData[indexDinas + 1]){
-            excelData[indexDinas + 1][index + 2] = {t:"n", v:0, s:{font:{name: "Calibri", sz: 9}}}
+          if (excelData[indexDinas + 1]) {
+            excelData[indexDinas + 1][index + 2] = { t: "n", v: 0, s: { font: { name: "Calibri", sz: 9 } } }
           } else {
             excelData.push(
               [
-                {t:"s", v:indexDinas+1, s:{font:{name: "Calibri", sz: 9}}},
-                {t:"s", v:dinas.nama_skpd, s:{font:{name: "Calibri", sz: 9}}},
-                {t:"n", v:0, s:{font:{name: "Calibri", sz: 9}}},
+                { t: "s", v: indexDinas + 1, s: { font: { name: "Calibri", sz: 9 } } },
+                { t: "s", v: dinas.nama_skpd, s: { font: { name: "Calibri", sz: 9 } } },
+                { t: "n", v: 0, s: { font: { name: "Calibri", sz: 9 } } },
               ]
             )
           }
         }
-        
+
       } catch (error) {
         console.log(error)
       }
@@ -501,31 +504,31 @@ function cekAnomali(limit){
   XLSX.writeFile(workbook, `EXCEL/JUMLAH PEGAWAI.xlsx`, { compression: true });
 }
 
-function cekAnomaliPegawai(limit){
+function cekAnomaliPegawai(limit) {
   let workbook = XLSX.utils.book_new()
   for (const [indexDinas, dinas] of listDinas.entries()) {
     let pegawaiData = [];
     let excelData = [
       [
-        {t:"s", v:"No.", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-        {t:"s", v:"NIP", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-        {t:"s", v:"Nama Pegawai", s:{font:{bold:true, name: "Calibri", sz: 9}}},
-        {t:"s", v:"Golongan", s:{font:{bold:true, name: "Calibri", sz: 9}}},
+        { t: "s", v: "No.", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+        { t: "s", v: "NIP", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Nama Pegawai", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Golongan", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
       ]
     ];
     for (const [index, value] of listBulan.entries()) {
-      if((index+1) > limit){
+      if ((index + 1) > limit) {
         break;
       }
-      excelData[0][index + 4] = {t:"s", v:value.toUpperCase(), s:{font:{bold:true, name: "Calibri", sz: 9}}}
-      const folderPath = `GAJI\\${index+1}. ${value}\\${indexDinas+1}. ${dinas.nama_skpd}.json`;
+      excelData[0][index + 4] = { t: "s", v: value.toUpperCase(), s: { font: { bold: true, name: "Calibri", sz: 9 } } }
+      const folderPath = `GAJI\\${index + 1}. ${value}\\${indexDinas + 1}. ${dinas.nama_skpd}.json`;
       try {
-        if(fs.existsSync(folderPath)){
+        if (fs.existsSync(folderPath)) {
           let files = fs.readFileSync(`${folderPath}`, 'utf-8')
           let jsonData = JSON.parse(files)
           for (const iterator of jsonData) {
 
-            if(index === 0) {
+            if (index === 0) {
               pegawaiData.push({
                 nip_pegawai: iterator.nip_pegawai,
                 nama_pegawai: iterator.nama_pegawai,
@@ -534,7 +537,7 @@ function cekAnomaliPegawai(limit){
               })
             } else {
               // console.log(jsonData.find(x => x.nip_pegawai == '196402041984031002'))
-              if(pegawaiData.some(x => x.nip_pegawai === iterator.nip_pegawai)){
+              if (pegawaiData.some(x => x.nip_pegawai === iterator.nip_pegawai)) {
                 let existingPegawai = pegawaiData.find(x => x.nip_pegawai === iterator.nip_pegawai)
                 existingPegawai[value] = 1
               } else {
@@ -546,7 +549,7 @@ function cekAnomaliPegawai(limit){
                 })
 
                 // console.log(`${value} - ${iterator.nip_pegawai}`)
-                
+
                 for (let i = 0; i < index; i++) {
                   const element = listBulan[i];
                   pegawaiData[element] = 0
@@ -586,11 +589,112 @@ function cekAnomaliPegawai(limit){
 
     const worksheet = XLSX.utils.aoa_to_sheet(excelData);
     worksheet["!cols"] = [{ wpx: 25 }, { wpx: 100 }, { wpx: 215 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }, { wpx: 43 }];
-    XLSX.utils.book_append_sheet(workbook, worksheet, `${indexDinas+1}. ${dinas.nama_skpd}`.substring(0, 30));
+    XLSX.utils.book_append_sheet(workbook, worksheet, `${indexDinas + 1}. ${dinas.nama_skpd}`.substring(0, 30));
   }
 
   XLSX.writeFile(workbook, `EXCEL/KEHADIRAN PEGAWAI.xlsx`, { compression: true });
 }
+
+function convertRealisasi(limit) {
+  let workbook = XLSX.utils.book_new()
+  for (const [indexDinas, dinas] of listDinas.entries()) {
+    let excelData = [
+      [
+        { t: "s", v: "Kode Rekening", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Uraian", s: { font: { bold: true, name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 01", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Gaji Pokok ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        null,
+        { t: "s", v: "Tunjangan Istri", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        null,
+        { t: "s", v: "Tunjangan Anak", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 02", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan Keluarga ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 03", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan Jabatan ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 04", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan Fungsional ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 05", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan Fungsional Umum ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 06", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan Beras ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 07", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Tunjangan PPh/Tunjangan Khusus ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 09", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Iuran Jaminan Kesehatan (BPJS) ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 10", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Iuran Jaminan Kecelakaan Kerja (JKK) ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 11", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Iuran Jaminan Kematian (JKM) ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+      [
+        { t: "s", v: "5 . 1 . 01 . 01 . 08", s: { font: { name: "Calibri", sz: 9 } } },
+        { t: "s", v: "Pembulatan Gaji ASN", s: { font: { name: "Calibri", sz: 9 } } },
+      ],
+    ];
+    for (const [index, value] of listBulan.entries()) {
+      if ((index + 1) > limit) {
+        break;
+      }
+      excelData[0][index + 2] = { t: "s", v: value.toUpperCase(), s: { font: { bold: true, name: "Calibri", sz: 9 } } }
+      const folderPath = `GAJI\\${index + 1}. ${value}\\${indexDinas + 1}. ${dinas.nama_skpd}.json`;
+      try {
+        if (fs.existsSync(folderPath)) {
+          let files = fs.readFileSync(`${folderPath}`, 'utf-8')
+          let jsonData = JSON.parse(files)
+          excelData[1][index + 2] = { t: "n", v: total(jsonData, 'belanja_gaji_pokok'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[2][index + 2] = { t: "n", v: total(jsonData, 'perhitungan_suami_istri'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[3][index + 2] = { t: "n", v: total(jsonData, 'perhitungan_anak'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[4][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_keluarga'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[5][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_jabatan'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[6][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_fungsional'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[7][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_fungsional_umum'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[8][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_beras'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[9][index + 2] = { t: "n", v: total(jsonData, 'belanja_tunjangan_pph'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[10][index + 2] = { t: "n", v: total(jsonData, 'belanja_iuran_jaminan_kesehatan'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[11][index + 2] = { t: "n", v: total(jsonData, 'belanja_iuran_jaminan_kecelakaan_kerja'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[12][index + 2] = { t: "n", v: total(jsonData, 'belanja_iuran_jaminan_kematian'), s: { font: { name: "Calibri", sz: 9 } } }
+          excelData[13][index + 2] = { t: "n", v: total(jsonData, 'belanja_pembulatan_gaji'), s: { font: { name: "Calibri", sz: 9 } } }
+
+        }
+      } catch (error) {
+        console.log(error)
+      }
+    }
+
+    const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+    worksheet["!cols"] = [{ wpx: 75 }, { wpx: 180 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }, { wpx: 65 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, `${indexDinas + 1}. ${dinas.nama_skpd}`.substring(0, 30));
+  }
+
+  XLSX.writeFile(workbook, `EXCEL/REALISASI GAJI SAMPAI ${listBulan[limit-1].toUpperCase()}.xlsx`, { compression: true });
+}
+
+
 
 // mainkan ini saja mau ambil, convert, atau cek yang prematur
 
@@ -598,5 +702,10 @@ function cekAnomaliPegawai(limit){
 // convertData(2);
 // premature(2)
 // hitungStruktural(2)
-// convertExcel(6);
-cekAnomaliPegawai(6);
+// convertExcel(6)
+// cekAnomaliPegawai(6)
+convertRealisasi(6)
+
+let divElement = document.querySelectorAll('.card-body');
+let tables = divElement[1].querySelectorAll('table');
+let secondTable = tables[1];

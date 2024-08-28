@@ -10,6 +10,8 @@ Biar kerja gak berat-berat amat
 
 dan yang pasti membuat kita lebih tambah malas lagi buat kerja wkwkwk
 
-## BUG
+## DISCLAIMER
 
-Ini masih belum otomasi, nanti dipengembangan selanjutnya. gak ada uangnya kok kerjanya "ngoyoh"
+Pembuat mengerjakan ini tidak dibayar dan tidak ada yang menyuruh. 
+
+Kode ini menggunakan MIT License

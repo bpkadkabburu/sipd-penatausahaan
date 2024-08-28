@@ -1,6 +1,5 @@
 node_modules
-GAJI/*
-EXCEL/*
-JSON/*
+OLD/
+lib/
+res/*
 .env
-cookies.json

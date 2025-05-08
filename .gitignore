@@ -1,5 +1,4 @@
 node_modules
-OLD/
-lib/
 res/*
+JSON/*
 .env

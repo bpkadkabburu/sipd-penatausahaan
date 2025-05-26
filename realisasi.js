@@ -35,7 +35,7 @@ class RateLimiter {
     this.remaining = parseInt(headers.get('x-ratelimit-remaining') || this.remaining);
     this.resetSeconds = parseInt(headers.get('x-ratelimit-reset') || 0);
     this.lastUpdated = Date.now();
-    
+
     console.log(`Rate limit: ${this.remaining}/${this.limit}, resets in ${this.resetSeconds}s`);
   }
 
@@ -43,17 +43,17 @@ class RateLimiter {
   async shouldWait() {
     // If we have requests remaining, no need to wait
     if (this.remaining > 0) return false;
-    
+
     // Calculate how long we need to wait
     const elapsedSinceUpdate = (Date.now() - this.lastUpdated) / 1000;
     const remainingWaitTime = Math.max(0, this.resetSeconds - elapsedSinceUpdate);
-    
+
     if (remainingWaitTime > 0) {
       console.log(`Rate limit exceeded. Waiting ${remainingWaitTime.toFixed(1)} seconds...`);
       await setTimeout(remainingWaitTime * 1000 + 1000); // Add 1 second buffer
       return true;
     }
-    
+
     return false;
   }
 }
@@ -66,40 +66,40 @@ class SIPDClient {
     this.currentDate = getCurrentDate();
     this.flattenedResults = []; // Store flattened results here
     this.counter = 0; // Counter for numbering records
-    this.outputDir = path.join('JSON', 'realisasi', '2025'); // Output directory
+    this.outputDir = path.join('JSON', '2025'); // Output directory
   }
 
   // Function to make the actual request with retries
   async makeRequest(endpoint, retries = 3) {
     // Check if we need to wait due to rate limiting
     await this.rateLimiter.shouldWait();
-    
+
     try {
       const url = `${this.baseUrl}${endpoint}?tanggal_akhir=${this.currentDate}`;
-      
+
       console.log(`Making request to: ${url}`);
-      
+
       // Create headers exactly like in Postman
       const headers = new Headers();
       headers.append("Origin", "https://sipd.kemendagri.go.id");
       headers.append("Authorization", `Bearer ${authToken}`);
-      
+
       const requestOptions = {
         method: "GET",
         headers: headers,
         redirect: "follow"
       };
-      
+
       // Use native fetch API
       const response = await fetch(url, requestOptions);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       // Update rate limiter with headers from response
       this.rateLimiter.updateFromHeaders(response.headers);
-      
+
       // Parse and return the JSON response
       const data = await response.json();
       return data;
@@ -107,14 +107,14 @@ class SIPDClient {
       // Handle rate limit errors specifically
       if (error.message.includes('429')) {
         console.log('Rate limit exceeded according to response status');
-        
+
         // Wait for rate limit reset if retries remain
         if (retries > 0) {
           await this.rateLimiter.shouldWait();
           return this.makeRequest(endpoint, retries - 1);
         }
       }
-      
+
       // Handle other errors
       console.error(`Request failed for ${endpoint}:`, error.message);
       if (retries > 0) {
@@ -143,67 +143,67 @@ class SIPDClient {
     try {
       // Ensure output directory exists
       await this.ensureOutputDirExists();
-      
+
       // Step 1: Fetch SKPD list
       const skpdList = await this.makeRequest('/pengeluaran/strict/dashboard/statistik-belanja');
       console.log(`Found ${skpdList.length} SKPDs`);
-      
+
       // Limit the number of SKPDs to process if needed
       const limitedSKPDList = skpdList.slice(0, maxSKPD);
-      
+
       // Step 2: Process each SKPD
       for (const [index, skpd] of limitedSKPDList.entries()) {
         console.log(`Processing SKPD ${index + 1}/${limitedSKPDList.length}: ${skpd.nama_skpd} (ID: ${skpd.id_skpd})`);
-        
+
         try {
           // Step 3: Fetch sub-SKPD for this SKPD
           const subSKPDList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}`);
           console.log(`Found ${subSKPDList.length} sub-SKPDs for SKPD ${skpd.id_skpd}`);
-          
+
           // Step 4: Process each sub-SKPD
           for (const subSKPD of subSKPDList) {
             console.log(`Processing sub-SKPD: ${subSKPD.nama_sub_skpd} (ID: ${subSKPD.id_sub_skpd})`);
-            
+
             try {
               // Step 5: Fetch bidang urusan for this SKPD and sub-SKPD
               const bidangUrusanList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}/${subSKPD.id_sub_skpd}`);
               console.log(`Found ${bidangUrusanList.length} bidang urusan for SKPD ${skpd.id_skpd}, sub-SKPD ${subSKPD.id_sub_skpd}`);
-              
+
               // Step 6: Process each bidang urusan
               for (const bidangUrusan of bidangUrusanList) {
                 console.log(`Processing bidang urusan ID: ${bidangUrusan.id_bidang_urusan}`);
-                
+
                 try {
                   // Step 7: Fetch program for this SKPD, sub-SKPD, and bidang urusan
                   const programList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}/${subSKPD.id_sub_skpd}/${bidangUrusan.id_bidang_urusan}`);
                   console.log(`Found ${programList.length} programs for SKPD ${skpd.id_skpd}, sub-SKPD ${subSKPD.id_sub_skpd}, bidang urusan ${bidangUrusan.id_bidang_urusan}`);
-                  
+
                   // Step 8: Process each program
                   for (const program of programList) {
                     console.log(`Processing program ID: ${program.id_program}`);
-                    
+
                     try {
                       // Step 9: Fetch giat for this SKPD, sub-SKPD, bidang urusan, and program
                       const giatList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}/${subSKPD.id_sub_skpd}/${bidangUrusan.id_bidang_urusan}/${program.id_program}`);
                       console.log(`Found ${giatList.length} giats for SKPD ${skpd.id_skpd}, sub-SKPD ${subSKPD.id_sub_skpd}, bidang urusan ${bidangUrusan.id_bidang_urusan}, program ${program.id_program}`);
-                      
+
                       // Step 10: Process each giat
                       for (const giat of giatList) {
                         console.log(`Processing giat ID: ${giat.id_giat}`);
-                        
+
                         try {
                           // Step 11: Fetch sub-giat for this SKPD, sub-SKPD, bidang urusan, program, and giat
                           const subGiatList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}/${subSKPD.id_sub_skpd}/${bidangUrusan.id_bidang_urusan}/${program.id_program}/${giat.id_giat}`);
                           console.log(`Found ${subGiatList.length} sub-giats for SKPD ${skpd.id_skpd}, sub-SKPD ${subSKPD.id_sub_skpd}, bidang urusan ${bidangUrusan.id_bidang_urusan}, program ${program.id_program}, giat ${giat.id_giat}`);
-                          
+
                           // Step 12: Process each sub-giat
                           for (const subGiat of subGiatList) {
                             console.log(`Processing sub-giat ID: ${subGiat.id_sub_giat}`);
-                            
+
                             try {
                               // Step 13: Fetch final data
                               const finalData = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}/${subSKPD.id_sub_skpd}/${bidangUrusan.id_bidang_urusan}/${program.id_program}/${giat.id_giat}/${subGiat.id_sub_giat}`);
-                              
+
                               // Process and flatten the final data
                               for (const item of finalData) {
                                 this.counter++;
@@ -227,14 +227,14 @@ class SIPDClient {
                                   'NAMA REKENING': item.nama_akun || '',
                                   'PAGU': item.anggaran || 0,
                                   'REALISASI': item.realisasi_rill || 0,
-                                  'AKUN': item.kode_akun.substring(0,1) || '',
-                                  'KELOMPOK': item.kode_akun.substring(0,3) || '',
-                                  'JENIS': item.kode_akun.substring(0,6) || '',
-                                  'OBJEK': item.kode_akun.substring(0,9) || '',
-                                  'RINCIAN OBJEK': item.kode_akun.substring(0,12) || '',
+                                  'AKUN': item.kode_akun.substring(0, 1) || '',
+                                  'KELOMPOK': item.kode_akun.substring(0, 3) || '',
+                                  'JENIS': item.kode_akun.substring(0, 6) || '',
+                                  'OBJEK': item.kode_akun.substring(0, 9) || '',
+                                  'RINCIAN OBJEK': item.kode_akun.substring(0, 12) || '',
                                   'SUB RINCIAN OBJEK': item.kode_akun || ''
                                 };
-                                
+
                                 this.flattenedResults.push(flattenedRecord);
                               }
                             } catch (error) {
@@ -260,20 +260,64 @@ class SIPDClient {
         } catch (error) {
           console.error(`Error processing SKPD ${skpd.id_skpd}:`, error.message);
         }
-        
+
         // Save intermediate results after each SKPD to prevent data loss
-        await this.saveResults(`skpd_${skpd.id_skpd}.json`);
+        await this.saveResults(`realisasi/skpd_${skpd.id_skpd}.json`);
       }
-      
+
       // Save final results
-      await this.saveResults('realisasi_complete.json');
+      await this.saveResults('realisasi/realisasi_complete.json');
       console.log('All data processing completed successfully!');
-      
+
       return this.flattenedResults;
     } catch (error) {
       console.error('Error processing all data:', error.message);
       // Save whatever data we have so far
       await this.saveResults('realisasi_partial.json');
+      throw error;
+    }
+  }
+
+  async getSKPDList() {
+    try {
+      await this.ensureOutputDirExists();
+      const skpdList = await this.makeRequest('/pengeluaran/strict/dashboard/statistik-belanja');
+      for (const [index, skpd] of skpdList.entries()) {
+        console.log(`Processing SKPD ${index + 1}/${limitedSKPDList.length}: ${skpd.nama_skpd} (ID: ${skpd.id_skpd})`);
+        try {
+
+          const subSKPDList = await this.makeRequest(`/pengeluaran/strict/dashboard/statistik-belanja/${skpd.id_skpd}`);
+          console.log(`Found ${subSKPDList.length} sub-SKPDs for SKPD ${skpd.id_skpd}`);
+          for (const subSKPD of subSKPDList) {
+            console.log(`Processing sub-SKPD: ${subSKPD.nama_sub_skpd} (ID: ${subSKPD.id_sub_skpd})`);
+
+            try {
+              this.counter++;
+              // Create a flattened record with all the information
+              const flattenedRecord = {
+                'no': this.counter,
+                'tahun': subSKPD.tahun,
+                'id_skpd': subSKPD.id_skpd,
+                'id_sub_skpd': subSKPD.id_sub_skpd,
+                'kode_sub_unit': subSKPD.kode_sub_skpd,
+                'nama_sub_unit': subSKPD.nama_sub_skpd,
+              }
+              this.flattenedResults.push(flattenedRecord);
+            } catch (error) {
+              console.error(`Error processing sub-SKPD ${subSKPD.id_sub_skpd}:`, error.message);
+              throw error;
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing SKPD ${skpd.id_skpd}:`, error.message);
+          throw error;
+        }
+      }
+
+      await this.saveResults('listSKPD.json');
+      console.log('All data processing completed successfully!');
+    } catch (error) {
+      console.error('Error fetching SKPD list:', error.message);
       throw error;
     }
   }
@@ -288,6 +332,7 @@ class SIPDClient {
       console.error(`Error saving results to ${filename}:`, error.message);
     }
   }
+
 }
 
 // Main function to execute the recursive data fetching
@@ -295,14 +340,14 @@ async function main() {
   try {
     console.log('Starting recursive data fetching from SIPD Kemendagri with flattened output...');
     const client = new SIPDClient();
-    
+
     // Process all data (optionally limit the number of SKPDs to process)
     // For example, to process only the first 3 SKPDs:
     // await client.processAllData(3);
-    
+
     // To process all SKPDs:
     await client.processAllData();
-    
+
     console.log('Data fetching completed successfully!');
   } catch (error) {
     console.error('Failed to fetch all data:', error);

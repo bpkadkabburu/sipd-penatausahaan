@@ -9,6 +9,14 @@ const TOKEN = process.env.TOKEN
 const TAHUN = process.env.TAHUN
 const SUFFIX = `- ${TAHUN} - DPA ${process.env.SUFFIX_DPA}`
 
+interface LAPORAN_DPA {
+  PERSETUJUAN: string,
+  SKPD: string,
+  PENDAPATAN: string,
+  BELANJA: string,
+  RINCIAN_BELANJA: string,
+  PEMBIAYAAN: string,
+}
 interface URL {
   BASE: {
     HOME: string
@@ -16,37 +24,9 @@ interface URL {
   }
   API: {
     JADWAL: string
-    LIST_SKPD: string
-    PROFILE: string
+    TIM_TAPD: string,
+    LAPORAN_DPA: LAPORAN_DPA,
     PENDAPATAN: string
-    BELANJA: string
-    PENERIMAAN_PEMBIAYAAN: string
-    PENGELUARAN_PEMBIAYAAN: string
-    VALIDASI: {
-      RAK: {
-        BELANJA: {
-          INDEX: string
-          DETAIL: string
-        }
-      }
-    }
-  }
-  DPA: {
-    PERSETUJUAN: string
-    DEPAN: string
-    SKPD: string
-    PENDAPATAN: string
-    BELANJA: string
-    RINCIAN_BELANJA: string
-    PEMBIAYAAN: string
-  }
-  RAK: {
-    PEMDA: string
-    SKPD: string
-    PENDAPATAN: string
-    BELANJA: string
-    PENERIMAAN_PEMBIAYAAN: string
-    PENGELUARAN_PEMBIAYAAN: string
   }
 }
 
@@ -90,37 +70,12 @@ const config: Config = {
     },
     API: {
       JADWAL: `${BASE_API}/referensi/strict/laporan/dpa/dpa/jadwal-pergeseran`,
-      LIST_SKPD: `${BASE_API}/referensi/strict/skpd/list/`,
-      PROFILE: `${BASE_API}/auth/strict/user/profile`,
-      PENDAPATAN: `${BASE_API}/referensi/strict/dpa/penerimaan/pendapatan`,
-      BELANJA: `${BASE_API}/referensi/strict/dpa/penarikan/belanja`,
-      PENERIMAAN_PEMBIAYAAN: `${BASE_API}/referensi/strict/dpa/penerimaan/pembiayaan`,
-      PENGELUARAN_PEMBIAYAAN: `${BASE_API}/referensi/strict/dpa/penarikan/pembiayaan`,
-      VALIDASI: {
-        RAK: {
-          BELANJA: {
-            INDEX: `${BASE_API}/referensi/strict/validasi/rak/belanja`,
-            DETAIL: `${BASE_API}/referensi/strict/validasi/rak/belanja/index-detail`,
-          },
-        },
-      },
-    },
-    DPA: {
-      PERSETUJUAN: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/halaman-persetujuan-dpa`,
-      DEPAN: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/halaman-depan-dpa`,
-      SKPD: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/skpd`,
-      PENDAPATAN: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/pendapatan`,
-      BELANJA: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/belanja`,
-      RINCIAN_BELANJA: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/rincian-belanja`,
-      PEMBIAYAAN: `${BASE_URL}/pengeluaran/dpa/laporan/dpa/pembiayaan`,
-    },
-    RAK: {
-      PEMDA: `${BASE_URL}/pengeluaran/dpa/laporan/rak/pemda`,
-      SKPD: `${BASE_URL}/pengeluaran/dpa/laporan/rak/skpd`,
-      PENDAPATAN: `${BASE_URL}/pengeluaran/dpa/laporan/rak/pendapatan`,
-      BELANJA: `${BASE_URL}/pengeluaran/dpa/laporan/rak/belanja`,
-      PENERIMAAN_PEMBIAYAAN: `${BASE_URL}/pengeluaran/dpa/laporan/rak/penerimaan-pembiayaan`,
-      PENGELUARAN_PEMBIAYAAN: `${BASE_URL}/pengeluaran/dpa/laporan/rak/pengeluaran-pembiayaan`,
+      TIM_TAPD: `${BASE_API}/referensi/strict/tim-tapd/list`,
+
+      PERSETUJUAN: `${BASE_API}/referensi/strict/laporan/dpa/dpa/halaman-persetujuan`, //idskpd/idjadwal, persetujuan dan depan ini sama cuma beda waktu tampilkan htmlnya/report aja
+      SKPD: `${BASE_API}/referensi/strict/laporan/dpa/dpa/skpd`, //idskpd/idjadwal
+
+      RINCIAN_BELANJA: `${BASE_API}/referensi/strict/laporan/dpa/dpa/rincian-belanja`,
     },
   },
   PATH: {
@@ -134,7 +89,7 @@ const config: Config = {
       RINCIAN_BELANJA: `${PATH_DPA}\\${JADWAL}\\6. DPA Rincian Belanja`,
       PEMBIAYAAN: `${PATH_DPA}\\${JADWAL}\\7. Pembiayaan`,
     },
-    JSON:{
+    JSON: {
       UTAMA: `${PATH_DPA}\\${JADWAL}\\JSON`,
       DEPAN: `${PATH_DPA}\\${JADWAL}\\JSON\\1. Halaman Depan`,
       PERSETUJUAN: `${PATH_DPA}\\${JADWAL}\\JSON\\2. Halaman Persetujuan`,
